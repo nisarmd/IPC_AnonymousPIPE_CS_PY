@@ -5,6 +5,10 @@ using System.Diagnostics;
 
 namespace IPC_Sender
 {
+    public enum Runtime
+    {
+        Python,CSharp
+    }
     public class Server
     {
         
@@ -12,8 +16,12 @@ namespace IPC_Sender
         private static AnonymousPipeServerStream _receiver;
         private static Process proc;
 
-        private const string CLIENT_WORKING_DIR = @"C:\Users\Nisar\source\repos\IPC_AnonymousPIPE_CS_PY\CSharp_Client\bin\Publish";
-        private const string CLIENT_FILE_NAME = @"CSharp_Client.exe";
+        private const string CSHARP_CLIENT_WORKING_DIR = @"C:\Users\Nisar\source\repos\IPC_AnonymousPIPE_CS_PY\CSharp_Client\bin\Publish";
+        private const string CSHARP_CLIENT_FILE_NAME = @"CSharp_Client.exe";
+
+        private const string PYTHON_INTERPRETER_WORKING_DIR = @"C:\Users\Nisar\AppData\Local\Programs\Python\Python36-32\";
+        private const string PYTHON_INTERPRETER = @"python";
+        private const string PYTHON_SCRIPT = @"C:\Users\Nisar\source\repos\IPC_AnonymousPIPE_CS_PY\Python_Client\Python_Client.py";
 
         static Server()
         {
@@ -24,26 +32,37 @@ namespace IPC_Sender
             HandleInheritability.Inheritable);
         }
         
-        public static void Start()
+        
+        public static void Start(Runtime runtime)
         {
             proc = new Process();
 
             try
             {
-                proc.StartInfo.WorkingDirectory = CLIENT_WORKING_DIR;
-                proc.StartInfo.FileName = Path.Join(CLIENT_WORKING_DIR,CLIENT_FILE_NAME);
+                proc.StartInfo.WorkingDirectory = runtime.Equals(Runtime.CSharp)?
+                    CSHARP_CLIENT_WORKING_DIR: PYTHON_INTERPRETER_WORKING_DIR;
+                proc.StartInfo.FileName = runtime.Equals(Runtime.CSharp) ? 
+                    Path.Join(CSHARP_CLIENT_WORKING_DIR, CSHARP_CLIENT_FILE_NAME) :
+                    Path.Join(PYTHON_INTERPRETER_WORKING_DIR, PYTHON_INTERPRETER);
                 proc.StartInfo.UseShellExecute = false;
 
-                proc.StartInfo.Arguments =
-                    $"{_sender.GetClientHandleAsString()} {_receiver.GetClientHandleAsString()}";
+                proc.StartInfo.Arguments = runtime.Equals(Runtime.CSharp) ?
+                    $"{_sender.GetClientHandleAsString()} {_receiver.GetClientHandleAsString()}" :
+                    $"{PYTHON_SCRIPT} {_sender.GetClientHandleAsString()} {_receiver.GetClientHandleAsString()}";
 
                 proc.StartInfo.RedirectStandardError = true;
                 proc.StartInfo.RedirectStandardOutput = true;
-
+                proc.OutputDataReceived += new DataReceivedEventHandler(OutputResponse);
+                proc.ErrorDataReceived += new DataReceivedEventHandler(ErrorResponse);
                 proc.Start();
-
+                
                 _sender.DisposeLocalCopyOfClientHandle();
                 _receiver.DisposeLocalCopyOfClientHandle();
+
+                //while (true){
+                //    Console.WriteLine(proc.StandardOutput.ReadLine());
+                //}
+                
 
                 using (_sender)
                 {
@@ -54,15 +73,20 @@ namespace IPC_Sender
                         {
                             using (StreamReader sR = new StreamReader(_receiver))
                             {
+                                
                                 sW.AutoFlush = true;
                                 sW.WriteLine("SYNC");
-                                _sender.WaitForPipeDrain();
+                                int count = 1;
 
+                                while (count < 20)
+                                {
+                                    Console.WriteLine(proc.StandardOutput.ReadLine());
+                                } 
                                 for (int i = 0; i < 10; i++)
                                 {
+                                    //
                                     sW.WriteLine($"Server message {i}");
-                                    Console.WriteLine(proc.StandardOutput.ReadLine());
-
+                                    
                                     var incoming = sR.ReadLine();
                                     Console.WriteLine(incoming);
                                 }
@@ -72,7 +96,6 @@ namespace IPC_Sender
                     }
                 }
                 
-                Console.WriteLine(proc.StandardError.ReadLine());
             }
             catch(Exception e)
             {
@@ -84,6 +107,15 @@ namespace IPC_Sender
                 proc.Kill();
                 proc.Close();
             }
+        }
+
+        static void OutputResponse(object sender, DataReceivedEventArgs e)
+        {
+            Console.WriteLine("Output@ "+DateTime.Now+"   "+e.Data);
+        }
+        static void ErrorResponse(object sender, DataReceivedEventArgs args)
+        {
+            Console.WriteLine("Errors@ "+DateTime.Now + "   "+args.Data);
         }
     }
 }
