@@ -15,7 +15,7 @@ Here CSharp is the parent and Python is Child process.
 
 The code is compatible with Linux, Windows and Docker as well.
 
---------------------------IDEA-------------------------------------
+--------------------------IDEA BEHIND-------------------------------------
 Though Anonymous Pipes are not meant for network communication. Still its latency is quite higher compared to 
 Named Pipes (Over the network pipe).
 
