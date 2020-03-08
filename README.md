@@ -17,7 +17,7 @@ The code is compatible with Linux, Windows and Docker as well.
 
 --------------------------IDEA BEHIND-------------------------------------
 Though Anonymous Pipes are not meant for network communication. Still its latency is quite higher compared to 
-Named Pipes (Over the network pipe).
+Named Pipes (Over the network).
 
 ----------------------------USE CASE---------------------------------
 Executing a runtime specific jobs (eg. python runtime) like analytics,  etc. over the subprocess and 
